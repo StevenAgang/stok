@@ -1,0 +1,6 @@
+@stok_HostAddress = http://localhost:5123
+
+GET {{stok_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
