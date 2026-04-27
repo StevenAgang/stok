@@ -1,4 +1,6 @@
-﻿using stok.Repository.Configurations;
+﻿using Microsoft.AspNetCore.Authentication;
+using stok.Repository.Configurations;
+using stok.Repository.Configurations.Exception_Extender;
 using stok.Repository.Configurations.Helper;
 
 namespace stok.Middleware
@@ -17,6 +19,22 @@ namespace stok.Middleware
             catch (BadRequest ex)
             {
                 await Response(context, 400, "application/json", ex.Message);
+            }
+            //catch (AuthenticationFailureException ex)  // ✅ let it bubble up
+            //{
+            //    await Response(context, 401, "application/json", ex.Message);
+            //}
+            catch (UnauthorizedAccessException ex)
+            {
+                await Response(context, 401, "application/json", ex.Message);
+            }
+            catch (NotFound ex)
+            {
+                await Response(context, 404, "application/json", ex.Message);
+            }
+            catch(Forbidden ex)
+            {
+                await Response(context, 403, "application/json", ex.Message);
             }
             catch (Exception ex)
             {

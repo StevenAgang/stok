@@ -4,7 +4,7 @@ namespace stok.Repository.Configurations.Helper
 {
     public class ResponseHelper
     {
-        public object Status(int status, bool success, string message, object content)
+        public object Status(int status, bool success, string? message, object? content = null)
         {
             return new ResponseHelperViewModel
             {
