@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using stok.Repository.Configurations;
 using stok.Repository.Configurations.Attribute_Extender;
@@ -29,18 +28,45 @@ namespace stok.Controllers
         private readonly IRefreshTokenManagerService _refresTokenManager = refresTokenManager;
         private readonly ResponseHelper _response = response;
 
-        [Authorize]
         [HttpPost("login")]
-        public async Task<IActionResult> Login()
+        public async Task<IActionResult> Login(UserAccountLoginViewModel user, CancellationToken cancellation)
         {
-            throw new NotImplementedException();
+            var result = await _userAccount.Login(user, cancellation);
+
+            var finalize = new FinalizeTokenViewModel
+            {
+                AccessToken = result[0],
+                RefreshToken = result[1],
+                Context = HttpContext
+            };
+
+            _tokenManager.FinalizeToken(finalize);
+
+            return StatusCode(200, _response.Status(200, true, $"Welcome back {result[2]}"));
         }
 
-        [AllowAnonymous]
+
+        [Transaction]
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] UserAccountRegistrationViewModel user)
         {
-            throw new NotImplementedException();
+            await _userAccount.Register(user);
+
+            return StatusCode(200, _response.Status(200, true, "Account created successfully"));
+        }
+
+        [HttpGet("recover")]
+        public async Task<IActionResult> Recover([FromQuery] string email)
+        {
+            await _userAccount.Recover(email);
+            return StatusCode(200, _response.Status(200, true, "Instruction sent"));
+        }
+
+        [HttpPatch("recover/change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordViewModel password, [FromQuery] string token)
+        {
+            await _userAccount.ChangePassword(token, password.Password);
+            return StatusCode(200, _response.Status(200, true, "Change Password Successfully"));
         }
 
         [HttpGet("google-signin")]
@@ -72,12 +98,6 @@ namespace stok.Controllers
                 throw new Exception("Redirect URI propety is not set");
             }
 
-            var httpContextSetting = new HttpContextSetting();
-            var HttpContextRefreshTokenSettings = new HttpContextRefreshTokenSettings();
-
-            _config.GetSection("HttpContextSettings").Bind(httpContextSetting);
-            _config.GetSection("HttpContextRefreshTokenSettings").Bind(HttpContextRefreshTokenSettings);
-
             var userData = new UserAccountGoogleSignInViewModel
             {
                 FirstName = firstName,
@@ -89,8 +109,15 @@ namespace stok.Controllers
 
             var signinResult = await _userAccount.GmailSignin(userData);
 
-            _tokenManager.SetAccessTokenCookie(signinResult[1], httpContextSetting, HttpContext);
-            _tokenManager.SetRefreshTokenCookie(signinResult[0], HttpContextRefreshTokenSettings, HttpContext);
+
+            var finalize = new FinalizeTokenViewModel
+            {
+                AccessToken = signinResult[0],
+                RefreshToken = signinResult[1],
+                Context = HttpContext
+            };
+
+            _tokenManager.FinalizeToken(finalize);
 
             return Redirect(GoogleSignRedirectSuccess.RedirectUri);
         }
@@ -131,14 +158,14 @@ namespace stok.Controllers
 
             var result = await _refresTokenManager.Refresh(token);
 
-            var httpContextSetting = new HttpContextSetting();
-            var HttpContextRefreshTokenSettings = new HttpContextRefreshTokenSettings();
+            var finalize = new FinalizeTokenViewModel
+            {
+                AccessToken = result[0],
+                RefreshToken = result[1],
+                Context = HttpContext
+            };
 
-            _config.GetSection("HttpContextSettings").Bind(httpContextSetting);
-            _config.GetSection("HttpContextRefreshTokenSettings").Bind(HttpContextRefreshTokenSettings);
-
-            _tokenManager.SetAccessTokenCookie(result[0], httpContextSetting, HttpContext);
-            _tokenManager.SetRefreshTokenCookie(result[1], HttpContextRefreshTokenSettings, HttpContext);
+            _tokenManager.FinalizeToken(finalize);
 
             return StatusCode(200, _response.Status(200, true, "Updated Successfully"));
         }

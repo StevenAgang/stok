@@ -1,4 +1,6 @@
-﻿namespace stok.Repository.ViewModel.TokenManager
+﻿using stok.Repository.Configurations;
+
+namespace stok.Repository.ViewModel.TokenManager
 {
     public class RefreshTokenManagerViewModel
     {
@@ -16,5 +18,12 @@
     {
         public string? AccessToken { get; set; }
         public string? RefreshToken { get; set; }
+    }
+
+    public class FinalizeTokenViewModel
+    {
+        public required string AccessToken { get; set; }
+        public required string RefreshToken { get; set; }
+        public required HttpContext Context { get; set; }
     }
 }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using stok.Repository;
@@ -11,9 +12,11 @@ using stok.Repository;
 namespace stok.Migrations
 {
     [DbContext(typeof(DatabaseContext))]
-    partial class DatabaseContextModelSnapshot : ModelSnapshot
+    [Migration("20260427120133_changes v2")]
+    partial class changesv2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,51 +24,6 @@ namespace stok.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("stok.Repository.Model.TokenManager.ForgotPasswordTokenManager", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("Created_At")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("Created_By")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("Deleted_At")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("Deleted_By")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Token")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("Updated_At")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("Updated_By")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("UserAccountId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserAccountId");
-
-                    b.ToTable("ForgotPasswordTokenManagers");
-                });
 
             modelBuilder.Entity("stok.Repository.Model.TokenManager.RefreshTokenManager", b =>
                 {
@@ -309,21 +267,10 @@ namespace stok.Migrations
                     b.ToTable("UserInformations");
                 });
 
-            modelBuilder.Entity("stok.Repository.Model.TokenManager.ForgotPasswordTokenManager", b =>
-                {
-                    b.HasOne("stok.Repository.Model.UserAccounts.UserAccount", "UserAccount")
-                        .WithMany("forgotPasswordTokenManagers")
-                        .HasForeignKey("UserAccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("UserAccount");
-                });
-
             modelBuilder.Entity("stok.Repository.Model.TokenManager.RefreshTokenManager", b =>
                 {
                     b.HasOne("stok.Repository.Model.UserAccounts.UserAccount", "UserAccount")
-                        .WithMany("RefreshTokenManagers")
+                        .WithMany("RefreshTokenManager")
                         .HasForeignKey("UserAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -368,9 +315,7 @@ namespace stok.Migrations
 
             modelBuilder.Entity("stok.Repository.Model.UserAccounts.UserAccount", b =>
                 {
-                    b.Navigation("RefreshTokenManagers");
-
-                    b.Navigation("forgotPasswordTokenManagers");
+                    b.Navigation("RefreshTokenManager");
                 });
 
             modelBuilder.Entity("stok.Repository.Model.UserAccounts.UserInformation", b =>

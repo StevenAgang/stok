@@ -14,7 +14,10 @@ namespace stok.Repository.Model.UserAccounts
         public string? Email { get; set; }
         public string? PasswordHash { get; set; }
         public string? Salt { get; set; }
+        public bool Disbaled { get; set; } = false;
+        public DateTime? DisabledTimer { get; set; } = null;
 
-        public ICollection<RefreshTokenManager> RefreshTokenManager { get; set; } = [];
+        public ICollection<RefreshTokenManager> RefreshTokenManagers { get; set; } = [];
+        public ICollection<ForgotPasswordTokenManager> forgotPasswordTokenManagers { get; set; } = [];
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.IdentityModel.Tokens;
 using stok.Repository.Configurations;
 using stok.Repository.Interace.TokenManager;
+using stok.Repository.ViewModel.TokenManager;
 using stok.Repository.ViewModel.UserAccount;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -72,19 +73,35 @@ namespace stok.Repository.Service.TokenManager
         public string GenerateRefreshToken()
         {
             var random = RandomNumberGenerator.GetBytes(64);
-            return Convert.ToBase64String(random).Replace('+', '-').Replace('/','_').TrimEnd('=');  
+            return Convert.ToBase64String(random);  
         }
 
-        public string Hashed<T>(T value, string salt)
+        public string Hashed(string value, string salt)
         {
             var combined = Encoding.UTF8.GetBytes(value + salt);
             var hash = SHA256.HashData(combined);
             var base64 = Convert.ToBase64String(hash);
 
-            return base64.Replace('/', '_')
-                .Replace('=', '_')
-                .Replace('+', '-')
-                .TrimEnd('=');
+            return base64;
+        }
+
+        public string GenerateUrlToken()
+        {
+            var random = RandomNumberGenerator.GetBytes(32);
+            return Convert.ToBase64String(random).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+        }
+
+        public HttpContext FinalizeToken(FinalizeTokenViewModel token)
+        {
+            var httpContextSetting = new HttpContextSetting();
+            var HttpContextRefreshTokenSettings = new HttpContextRefreshTokenSettings();
+            _config.GetSection("HttpContextSettings").Bind(httpContextSetting);
+            _config.GetSection("HttpContextRefreshTokenSettings").Bind(HttpContextRefreshTokenSettings);
+
+            SetAccessTokenCookie(token.AccessToken, httpContextSetting, token.Context);
+            SetRefreshTokenCookie(token.RefreshToken, HttpContextRefreshTokenSettings, token.Context);
+
+            return token.Context;
         }
 
         public string GenerateSalt()

@@ -11,6 +11,7 @@ namespace stok.Repository
         public DbSet<UserInformation> UserInformations { get; set; }
         public DbSet<PositionType> PositionTypes { get; set; }
         public DbSet<RefreshTokenManager> RefreshTokenManagers { get; set; }
+        public DbSet<ForgotPasswordTokenManager> ForgotPasswordTokenManagers { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -25,6 +26,8 @@ namespace stok.Repository
             modelBuilder.Entity<PositionType>()
                 .HasKey(k => k.Id);
             modelBuilder.Entity<RefreshTokenManager>()
+                .HasKey(k => k.Id);
+            modelBuilder.Entity<ForgotPasswordTokenManager>()
                 .HasKey(k => k.Id);
             #endregion
 
@@ -47,8 +50,13 @@ namespace stok.Repository
 
             modelBuilder.Entity<RefreshTokenManager>()
                 .HasOne(r => r.UserAccount)
-                .WithMany(u => u.RefreshTokenManager)
+                .WithMany(u => u.RefreshTokenManagers)
                 .HasForeignKey(r => r.UserAccountId);
+
+            modelBuilder.Entity<ForgotPasswordTokenManager>()
+                .HasOne(f => f.UserAccount)
+                .WithMany(u => u.forgotPasswordTokenManagers)
+                .HasForeignKey(f => f.UserAccountId);
             #endregion
         }
     }

@@ -1,12 +1,17 @@
 ﻿using stok.Repository.Configurations;
 using stok.Repository.Configurations.Exception_Extender;
+using stok.Repository.Configurations.Validation;
 using stok.Repository.Interace.Data.TokenManager;
 using stok.Repository.Interace.Data.UserAccount;
 using stok.Repository.Interace.TokenManager;
 using stok.Repository.Interace.UserAccount;
+using model = stok.Repository.Model.UserAccounts;
 using stok.Repository.ViewModel.TokenManager;
 using stok.Repository.ViewModel.UserAccount;
 using users = stok.Repository.Model.UserAccounts;
+using stok.Repository.Model.UserAccounts;
+using stok.Repository.Interace.EmailService;
+using stok.Repository.Model.TokenManager;
 
 namespace stok.Repository.Service.UserAccount
 {
@@ -14,13 +19,17 @@ namespace stok.Repository.Service.UserAccount
         IUserAccountData userAccountData, 
         ITokenManagerService tokenManager, 
         IRefreshTokenManagerService refreshTokenManagerService,
-        IRefreshTokenManagerData refreshTokenManagerData
+        IRefreshTokenManagerData refreshTokenManagerData,
+        IEmailService emailService,
+        IForgotPasswordTokenManagerData forgotPasswordTokenManagerData
         ) : IUserAccountService
     {
         private readonly IUserAccountData _userAccountData = userAccountData;
         private readonly ITokenManagerService _tokenManager = tokenManager;
         private readonly IRefreshTokenManagerService _refreshTokenManagerService = refreshTokenManagerService;
         private readonly IRefreshTokenManagerData _refreshTokenManagerData = refreshTokenManagerData;
+        private readonly IEmailService _emailService = emailService;
+        private readonly IForgotPasswordTokenManagerData _forgotPasswordTokenManagerData = forgotPasswordTokenManagerData;
 
         public async Task<string[]> GmailSignin(UserAccountGoogleSignInViewModel userData)
         {
@@ -31,7 +40,7 @@ namespace stok.Repository.Service.UserAccount
 
                 var existingToken = await _refreshTokenManagerData.GetRefreshTokenByUserId(user.Id);
                 
-                if(existingToken.Platform != userData.Platform)
+                if(existingToken!= null && existingToken.Platform != userData.Platform)
                 {
                     existingToken.Revoked = true;
                     existingToken.RevocationReason = "Multiple request of refresh token from the same type of device";
@@ -61,7 +70,7 @@ namespace stok.Repository.Service.UserAccount
                     Id = user.Id,
                     FullName = name,
                     AccountType = type.Type,
-                    PositionType = user.PositionType.Type == null ? "" : user.PositionType.Type
+                    PositionType = user.PositionType == null ? "" : user.PositionType.Type
                 };
 
                 var jwtTokens = _tokenManager.GenerateJwtToken(jwts);
@@ -83,7 +92,9 @@ namespace stok.Repository.Service.UserAccount
                 PositionTypeId = null,
                 Email = userData.Email,
                 PasswordHash = null,
-                Salt = null
+                Salt = null,
+                IsActive = true,
+                Created_At = DateTime.UtcNow
             };
 
             await _userAccountData.Save(newUser, userData.Cancellation);
@@ -112,7 +123,209 @@ namespace stok.Repository.Service.UserAccount
 
             var jwtToken = _tokenManager.GenerateJwtToken(jwt);
 
-            return new string[] { tokenData.RefreshToken, jwtToken};
+            string rawMail = _emailService.BuildRawMail(userData.Email,"Welcome to StokPH", _emailService.WelcomeUserMail());
+            await _emailService.SendMail(rawMail);
+
+            return new string[] {jwtToken, tokenData.RefreshToken};
+        }
+
+        public async Task Register(UserAccountRegistrationViewModel user)
+        {
+            UserAccountValidation.ValidInformation(user);
+            UserAccountValidation.ValidEmailAndPassword(user);
+
+            var existingUser = await _userAccountData.GetUserByEmailWithoutTracking(user.Email);
+
+            if(existingUser != null)
+            {
+                throw new BadRequest($"{user.Email} is already associated with another account");
+            }
+
+            string salt = _tokenManager.GenerateSalt();
+            var password = _tokenManager.Hashed(user.Password, salt);
+
+            var info = new UserInformation
+            {
+                FirstName = user.FirstName,
+                MiddleName = user.MidlleName,
+                LastName = user.LastName,
+            };
+
+            await _userAccountData.Save(info);
+
+            var newUser = new model.UserAccount
+            {
+                UserInformationId = info.Id,
+                AccountTypeId = 3,
+                PositionTypeId = null,
+                Email = user.Email,
+                PasswordHash = password,
+                Salt = salt,
+                IsActive = true,
+                Created_At = DateTime.UtcNow
+            };
+
+            await _userAccountData.Save(newUser);
+
+            string rawMail = _emailService.BuildRawMail(user.Email, "Welcome to StokPH", _emailService.WelcomeUserMail());
+            await _emailService.SendMail(rawMail);
+        }
+
+        public async Task<string[]> Login(UserAccountLoginViewModel user, CancellationToken cancellation)
+        {
+            UserAccountValidation.NotNullEmailAndPassword(user);
+
+            var existingUser = await _userAccountData.GetUserByEmailWithoutTracking(user.Email);
+
+            if(existingUser == null)
+            {
+                throw new UnauthorizedAccessException();
+            }
+
+            if (existingUser.Disbaled == true && existingUser.DisabledTimer > DateTime.UtcNow)
+            {
+                throw new UnauthorizedAccessException($"Your account is disabled please login again after {existingUser.DisabledTimer} UTC time zone");
+            }
+
+            string password = _tokenManager.Hashed(user.Password, existingUser.Salt);
+
+            if(password != existingUser.PasswordHash)
+            {
+                throw new UnauthorizedAccessException("Invalid email or password");
+            }
+
+            if(existingUser.Disbaled == true)
+            {
+                existingUser.Disbaled = false;
+                existingUser.DisabledTimer = null;
+
+                await _userAccountData.SaveChanges();
+            }
+
+            var existingToken = await _refreshTokenManagerData.GetRefreshTokenByUserId(existingUser.Id);
+
+            if(existingToken != null && existingToken.Platform == user.Platform)
+            {
+                existingToken.Revoked = true;
+                existingToken.RevocationReason = "User already log in on the same platform";
+                existingToken.IsActive = false;
+                existingToken.Updated_At = DateTime.UtcNow;
+                existingToken.Updated_By = existingUser.Id;
+
+                await _refreshTokenManagerData.SaveChanges();
+            }
+
+            var accountType = await _userAccountData.GetAccountTypeByUserId(existingUser.Id);
+
+            var tokenData = new RefreshTokenManagerCreateViewModel
+            {
+                UserAccountId = existingUser.Id,
+                RefreshToken = _tokenManager.GenerateRefreshToken(),
+                UserAgent = user.UserAgent,
+                Platform = user.Platform,
+            };
+
+            await _refreshTokenManagerService.Insert(tokenData, cancellation);
+
+            string fullName = existingUser.UserInformation.FirstName + " " + (existingUser.UserInformation.MiddleName == "" ? "" : existingUser.UserInformation.MiddleName) + " " + existingUser.UserInformation.LastName;
+
+            var jwt = new UserRoleAndPolicy
+            {
+                Id = existingUser.Id,
+                FullName = fullName,
+                AccountType = existingUser.AccountType.Type,
+                PositionType = existingUser.PositionType == null ? "" : existingUser.PositionType.Type
+            };
+
+            var accessToken = _tokenManager.GenerateJwtToken(jwt);
+
+            return new string[] {accessToken, tokenData.RefreshToken, fullName};
+        }
+
+
+        public async Task Recover(string email)
+        {
+            var existingUser = await _userAccountData.GetUserByEmailWithoutTracking(email);
+
+            if (existingUser == null)
+            {
+                return;
+            }
+
+            var existingToken = await _forgotPasswordTokenManagerData.GetTokenByUserId(existingUser.Id);
+
+            if (existingToken != null)
+            {
+                existingToken.IsActive = false;
+                existingToken.Updated_At = DateTime.UtcNow;
+                existingToken.Updated_By = existingUser.Id;
+
+                await _forgotPasswordTokenManagerData.SaveChanges();
+            }
+
+
+            string token = _tokenManager.GenerateUrlToken();
+
+            var fpEntity = new ForgotPasswordTokenManager
+            {
+                UserAccountId = existingUser.Id,
+                Token = token,
+                ExpiresAt = DateTime.UtcNow.AddHours(1),
+                IsActive = true,
+                Created_At = DateTime.UtcNow,
+                Created_By = existingUser.Id
+            };
+
+            await _forgotPasswordTokenManagerData.Save(fpEntity);
+
+            string link = $"https://localhost:4200/recovery/change-password?identity={token}";
+
+            string rawMail = _emailService.BuildRawMail(existingUser.Email, "Recover your account", _emailService.RecoveryAccountMail(link));
+            await _emailService.SendMail(rawMail);
+            return;
+        }
+
+
+        public async Task ChangePassword(string token, string password)
+        {
+            UserAccountValidation.ValidPassword(password);
+            var existingToken = await _forgotPasswordTokenManagerData.GetToken(token);
+
+            if (existingToken == null) 
+            {
+                throw new BadRequest("This request is expired");
+            }
+
+            var existingUser = await _userAccountData.GetUserByIdWithTracking(existingToken.UserAccountId);
+
+            if (DateTime.UtcNow > existingToken.ExpiresAt)
+            {
+                existingToken.IsActive = false;
+                existingToken.Updated_At = DateTime.UtcNow;
+                existingToken.Updated_By = existingUser.Id;
+
+                await _forgotPasswordTokenManagerData.SaveChanges();
+                throw new BadRequest();
+            }
+
+            existingToken.IsActive = false;
+            existingToken.Updated_At = DateTime.UtcNow;
+            existingToken.Updated_By = existingUser.Id;
+
+            await _forgotPasswordTokenManagerData.SaveChanges();
+
+            string salt = _tokenManager.GenerateSalt();
+            string passwordHash = _tokenManager.Hashed(password, salt);
+
+
+            existingUser.PasswordHash = passwordHash;
+            existingUser.Salt = salt;
+            existingUser.Updated_At = DateTime.UtcNow;
+            existingUser.Updated_By = existingUser.Id;
+
+            await _userAccountData.SaveChanges();
+
+            return;
         }
 
 

@@ -6,5 +6,9 @@ namespace stok.Repository.Interace.UserAccount
     {
         Task<string[]> GmailSignin(UserAccountGoogleSignInViewModel userData);
         Task Logout(int userAccountId);
+        Task<string[]> Login(UserAccountLoginViewModel user, CancellationToken cancellation);
+        Task Register(UserAccountRegistrationViewModel user);
+        Task Recover(string email);
+        Task ChangePassword(string token, string password);
     }
 }

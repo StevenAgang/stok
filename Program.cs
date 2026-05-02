@@ -11,13 +11,16 @@ using stok.Repository.Data.UserAccount;
 using stok.Repository.Interace.Data;
 using stok.Repository.Interace.Data.TokenManager;
 using stok.Repository.Interace.Data.UserAccount;
+using stok.Repository.Interace.EmailService;
 using stok.Repository.Interace.Scraping;
 using stok.Repository.Interace.TokenManager;
 using stok.Repository.Interace.UserAccount;
+using stok.Repository.Service.EmailService;
 using stok.Repository.Service.Hubs;
 using stok.Repository.Service.Scraping;
 using stok.Repository.Service.TokenManager;
 using stok.Repository.Service.UserAccount;
+using System.Security.Claims;
 
 namespace stok
 {
@@ -50,6 +53,7 @@ namespace stok
             builder.Services.AddScoped<IBaseData, BaseData>();
             builder.Services.AddScoped<IUserAccountData, UserAccountData>();
             builder.Services.AddScoped<IRefreshTokenManagerData, RefreshTokenManagerData>();
+            builder.Services.AddScoped<IForgotPasswordTokenManagerData, ForgotPasswordTokenManagerData>();
             #endregion
 
             #region Singleton Services
@@ -57,6 +61,8 @@ namespace stok
             builder.Services.AddSingleton<ResponseHelper>();
             builder.Services.AddSingleton<IScrapingService, ScrapingService>();
             builder.Services.AddSingleton<ITokenManagerService, TokenManagerService>();
+            builder.Services.AddSingleton<IGmailTokenManagerService, GmailTokenManagerService>();
+            builder.Services.AddSingleton<IEmailService, EmailService>();
 
             #endregion
 
@@ -72,9 +78,11 @@ namespace stok
                     ValidateIssuer = true,
                     ValidateAudience = true,
                     ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
                     ValidIssuer = builder.Configuration["Jwt:Issuer"],
                     ValidAudience = builder.Configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                    IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+                    RoleClaimType = ClaimTypes.Role
 
                 };
 
@@ -123,9 +131,19 @@ namespace stok
             //    //options.CallbackPath = "/user/google-admin-callback";
             //});
 
+            builder.Services.AddAuthorization(options =>
+            {
+                options.AddPolicy("RequireTeamLead", policy =>
+                {
+                    policy.RequireClaim("Position", "TL");
+                });
+            });
+
             builder.Services.AddDbContext<DatabaseContext>(context => context.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
             builder.Services.AddSignalR();
+
+            builder.Services.AddMemoryCache();
 
             builder.Services.AddControllers();
 
