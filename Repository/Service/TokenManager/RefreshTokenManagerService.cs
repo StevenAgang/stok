@@ -11,14 +11,11 @@ using stok.Repository.ViewModel.UserAccount;
 namespace stok.Repository.Service.TokenManager
 {
     public class RefreshTokenManagerService(
-        IRefreshTokenManagerData refreshTokenManagerData, 
-        ITokenManagerService tokenManager, 
-        IUserAccountData userAccount
+        IRefreshTokenManagerData _refreshTokenManagerData, 
+        ITokenManagerService _tokenManager, 
+        IUserAccountData _userAccount
         ) : IRefreshTokenManagerService
     {
-        private readonly IRefreshTokenManagerData _refreshTokenManagerData = refreshTokenManagerData;
-        private readonly ITokenManagerService _tokenManager = tokenManager;
-        private readonly IUserAccountData _userAccount = userAccount;
         public async Task Insert(RefreshTokenManagerCreateViewModel refreshToken, CancellationToken cancellation = default)
         {
             var token = new RefreshTokenManager
@@ -35,24 +32,21 @@ namespace stok.Repository.Service.TokenManager
 
             };
 
-           await refreshTokenManagerData.Save(token, cancellation);
+           await _refreshTokenManagerData.Save(token, cancellation);
         }
 
-        public async Task<string[]> Refresh(RefreshTokenManagerCreateViewModel refreshToken, CancellationToken cancellation = default)
+        public async Task<string[]> Refresh(RefreshTokenUpdateViewModel refreshToken, CancellationToken cancellation = default)
         {
-            if(refreshToken.UserAccountId == null || refreshToken.UserAccountId <= 0)
-            {
-                 throw new Forbidden("Forbidden request");
-            }
-
-            var existingToken = await _refreshTokenManagerData.GetRefreshTokenByUserId(refreshToken.UserAccountId);
 
             RefreshTokenValidation.ValidateRefreshToken(refreshToken.RefreshToken);
 
-            if (existingToken.RefreshToken != refreshToken.RefreshToken)
+            var existingToken = await _refreshTokenManagerData.GetRefreshToken(refreshToken.RefreshToken);
+
+            if (existingToken == null || existingToken.RefreshToken != refreshToken.RefreshToken)
             {
                 throw new Forbidden("Forbidden request");
             }
+
 
             if(existingToken.Platform != refreshToken.Platform)
             {
@@ -60,7 +54,7 @@ namespace stok.Repository.Service.TokenManager
                 existingToken.RevocationReason = "Platform mismatch";
                 existingToken.Updated_At = DateTime.UtcNow;
                 existingToken.IsActive = false;
-                existingToken.Updated_By = refreshToken.UserAccountId;
+                existingToken.Updated_By = existingToken.UserAccountId;
                 await _refreshTokenManagerData.SaveChanges(cancellation);
                 throw new Forbidden("Forbidden request");
             }
@@ -71,7 +65,7 @@ namespace stok.Repository.Service.TokenManager
                 existingToken.RevocationReason = "Refresh token expired";
                 existingToken.Updated_At = DateTime.UtcNow;
                 existingToken.IsActive = false;
-                existingToken.Updated_By = refreshToken.UserAccountId;
+                existingToken.Updated_By = existingToken.UserAccountId;
                 await _refreshTokenManagerData.SaveChanges(cancellation);
                 throw new Forbidden("Forbidden request");
             }
@@ -80,22 +74,27 @@ namespace stok.Repository.Service.TokenManager
             existingToken.RevocationReason = "Token refreshed";
             existingToken.Updated_At = DateTime.UtcNow;
             existingToken.IsActive = false;
-            existingToken.Updated_By = refreshToken.UserAccountId;
+            existingToken.Updated_By = existingToken.UserAccountId;
 
             await _refreshTokenManagerData.SaveChanges(cancellation);
 
-            var token = await IssueToken(refreshToken.UserAccountId);
+            var token = await IssueToken(existingToken.UserAccountId);
 
-            refreshToken.RefreshToken = token[1]; // Generate a new refresh token
+            var createToken = new RefreshTokenManagerCreateViewModel
+            {
+                UserAccountId = existingToken.UserAccountId,
+                RefreshToken = token[1],
+                UserAgent = refreshToken.UserAgent,
+                Platform = refreshToken.Platform
+            };
 
-            await Insert(refreshToken, cancellation);
+            await Insert(createToken, cancellation);
 
             return token;
         }
 
         private async Task<string[]> IssueToken(int UserAccountId)
         {
-            var accessType = await _userAccount.GetAccountTypeByUserId(UserAccountId);
             var user = await _userAccount.GetUserInformationByUserIdWithoutTracking(UserAccountId);
             string fullName = user.UserInformation.FirstName + (string.IsNullOrEmpty(user.UserInformation.MiddleName) ? "" : " " + user.UserInformation.MiddleName) + " " + user.UserInformation.LastName;
 
@@ -103,7 +102,7 @@ namespace stok.Repository.Service.TokenManager
             {
                 Id = user.Id,
                 FullName = fullName,
-                AccountType = accessType.Type,
+                AccountType = user.AccountType.Type,
                 PositionType = user.PositionTypeId == null ? "" : user.PositionType.Type
             };
 

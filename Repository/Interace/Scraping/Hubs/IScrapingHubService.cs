@@ -8,5 +8,6 @@ namespace stok.Repository.Interace.Scraping.Hubs
         Task ReceivedScrapingLinkResult(IEnumerable<ScrapingLinkResult> result);
         Task ReceivedLinkToScrape(IEnumerable<ScrapingLinkResult> links);
         Task ReceivedScrapingResult(IEnumerable<ScrapingViewModel> result);
+        Task<bool> CheckConnection(string key);
     }
 }

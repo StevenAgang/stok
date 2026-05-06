@@ -6,10 +6,8 @@ using System.Threading.Tasks;
 
 namespace stok.Repository.Service.TokenManager
 {
-    public class GmailTokenManagerService(IMemoryCache cache, IConfiguration config) : IGmailTokenManagerService
+    public class GmailTokenManagerService(IMemoryCache _cache, IConfiguration _config) : IGmailTokenManagerService
     {
-        private readonly IMemoryCache _cache = cache;
-        private readonly IConfiguration _config = config;
 
         private async Task RenewAccessToken()
         {

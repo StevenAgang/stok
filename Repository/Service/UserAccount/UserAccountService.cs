@@ -16,20 +16,14 @@ using stok.Repository.Model.TokenManager;
 namespace stok.Repository.Service.UserAccount
 {
     public class UserAccountService(
-        IUserAccountData userAccountData, 
-        ITokenManagerService tokenManager, 
-        IRefreshTokenManagerService refreshTokenManagerService,
-        IRefreshTokenManagerData refreshTokenManagerData,
-        IEmailService emailService,
-        IForgotPasswordTokenManagerData forgotPasswordTokenManagerData
+        IUserAccountData _userAccountData, 
+        ITokenManagerService _tokenManager, 
+        IRefreshTokenManagerService _refreshTokenManagerService,
+        IRefreshTokenManagerData _refreshTokenManagerData,
+        IEmailService _emailService,
+        IForgotPasswordTokenManagerData _forgotPasswordTokenManagerData
         ) : IUserAccountService
     {
-        private readonly IUserAccountData _userAccountData = userAccountData;
-        private readonly ITokenManagerService _tokenManager = tokenManager;
-        private readonly IRefreshTokenManagerService _refreshTokenManagerService = refreshTokenManagerService;
-        private readonly IRefreshTokenManagerData _refreshTokenManagerData = refreshTokenManagerData;
-        private readonly IEmailService _emailService = emailService;
-        private readonly IForgotPasswordTokenManagerData _forgotPasswordTokenManagerData = forgotPasswordTokenManagerData;
 
         public async Task<string[]> GmailSignin(UserAccountGoogleSignInViewModel userData)
         {
@@ -75,7 +69,7 @@ namespace stok.Repository.Service.UserAccount
 
                 var jwtTokens = _tokenManager.GenerateJwtToken(jwts);
 
-                return new string[] { token.RefreshToken, jwtTokens };
+                return new string[] {jwtTokens, token.RefreshToken };
             }
             var info = new users.UserInformation
             {
@@ -171,7 +165,7 @@ namespace stok.Repository.Service.UserAccount
             await _emailService.SendMail(rawMail);
         }
 
-        public async Task<string[]> Login(UserAccountLoginViewModel user, CancellationToken cancellation)
+        public async Task<UserAccountSuccessLoginViewModel> Login(UserAccountLoginViewModel user, CancellationToken cancellation)
         {
             UserAccountValidation.NotNullEmailAndPassword(user);
 
@@ -179,12 +173,12 @@ namespace stok.Repository.Service.UserAccount
 
             if(existingUser == null)
             {
-                throw new UnauthorizedAccessException();
+                throw new UnauthorizedAccessException("Invalid email or password");
             }
 
             if (existingUser.Disbaled == true && existingUser.DisabledTimer > DateTime.UtcNow)
             {
-                throw new UnauthorizedAccessException($"Your account is disabled please login again after {existingUser.DisabledTimer} UTC time zone");
+                throw new Forbidden($"Your account is disabled please login again after {existingUser.DisabledTimer} UTC time zone");
             }
 
             string password = _tokenManager.Hashed(user.Password, existingUser.Salt);
@@ -239,7 +233,15 @@ namespace stok.Repository.Service.UserAccount
 
             var accessToken = _tokenManager.GenerateJwtToken(jwt);
 
-            return new string[] {accessToken, tokenData.RefreshToken, fullName};
+
+
+            return new UserAccountSuccessLoginViewModel
+            {
+                Id = existingUser.Id,
+                Fullname = fullName,
+                AccessToken = accessToken,
+                RefreshToken = tokenData.RefreshToken
+            };
         }
 
 
@@ -329,20 +331,20 @@ namespace stok.Repository.Service.UserAccount
         }
 
 
-        public async Task Logout(int userAccountId)
+        public async Task Logout(string refreshToken)
         {
-            var token = await _refreshTokenManagerData.GetRefreshTokenByUserId(userAccountId);
+            var token = await _refreshTokenManagerData.GetRefreshToken(refreshToken);
 
             if(token == null)
             {
-                throw new NotFound();
+                throw new Forbidden();
             }
 
             token.Revoked = true;
             token.RevocationReason = "User logged out";
             token.Updated_At = DateTime.UtcNow;
             token.IsActive = false;
-            token.Updated_By = userAccountId;
+            token.Updated_By = token.UserAccountId;
             await _refreshTokenManagerData.SaveChanges();
         }
     }

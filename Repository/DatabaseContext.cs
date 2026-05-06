@@ -12,6 +12,7 @@ namespace stok.Repository
         public DbSet<PositionType> PositionTypes { get; set; }
         public DbSet<RefreshTokenManager> RefreshTokenManagers { get; set; }
         public DbSet<ForgotPasswordTokenManager> ForgotPasswordTokenManagers { get; set; }
+        public DbSet<ScrapeServiceTokenManager> ScrapeServiceTokenManagers { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -28,6 +29,8 @@ namespace stok.Repository
             modelBuilder.Entity<RefreshTokenManager>()
                 .HasKey(k => k.Id);
             modelBuilder.Entity<ForgotPasswordTokenManager>()
+                .HasKey(k => k.Id);
+            modelBuilder.Entity<ScrapeServiceTokenManager>()
                 .HasKey(k => k.Id);
             #endregion
 
@@ -57,6 +60,12 @@ namespace stok.Repository
                 .HasOne(f => f.UserAccount)
                 .WithMany(u => u.forgotPasswordTokenManagers)
                 .HasForeignKey(f => f.UserAccountId);
+
+            modelBuilder.Entity<ScrapeServiceTokenManager>()
+                .HasOne(s => s.UserAccount)
+                .WithOne(u => u.ScrapeServiceTokenManager)
+                .HasForeignKey<ScrapeServiceTokenManager>(u => u.UserAccountId)
+                .OnDelete(DeleteBehavior.NoAction);
             #endregion
         }
     }

@@ -15,18 +15,13 @@ namespace stok.Controllers
     [ApiController]
     [Route("user")]
     public class UserAccountController(
-        IUserAccountService userAccount, 
-        IConfiguration config, 
-        ITokenManagerService tokenManager,
-        IRefreshTokenManagerService refresTokenManager,
-        ResponseHelper response
+        IUserAccountService _userAccount, 
+        IConfiguration _config, 
+        ITokenManagerService _tokenManager,
+        IRefreshTokenManagerService _refresTokenManager,
+        ResponseHelper _response
         ) : ControllerBase
     {
-        private readonly IUserAccountService _userAccount = userAccount;
-        private readonly IConfiguration _config = config;
-        private readonly ITokenManagerService _tokenManager = tokenManager;
-        private readonly IRefreshTokenManagerService _refresTokenManager = refresTokenManager;
-        private readonly ResponseHelper _response = response;
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(UserAccountLoginViewModel user, CancellationToken cancellation)
@@ -35,14 +30,17 @@ namespace stok.Controllers
 
             var finalize = new FinalizeTokenViewModel
             {
-                AccessToken = result[0],
-                RefreshToken = result[1],
+                AccessToken = result.AccessToken,
+                RefreshToken = result.RefreshToken,
                 Context = HttpContext
             };
 
             _tokenManager.FinalizeToken(finalize);
 
-            return StatusCode(200, _response.Status(200, true, $"Welcome back {result[2]}"));
+            result.AccessToken = "";
+            result.RefreshToken = "";
+
+            return StatusCode(200, _response.Status(200, true, $"Welcome back {result.Fullname}"));
         }
 
 
@@ -144,14 +142,14 @@ namespace stok.Controllers
         //}
 
         [HttpPatch("refresh")]
-        public async Task<IActionResult> Refresh([FromBody] RefreshTokenManagerCreateViewModel token)
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenUpdateViewModel token)
         {
 
             string refreshToken = HttpContext.Request.Cookies["RefreshToken"];
 
             if (string.IsNullOrEmpty(refreshToken))
             {
-                await _userAccount.Logout(token.UserAccountId);
+                return StatusCode(403, _response.Status(403, false, null));
             }
 
             token.RefreshToken = refreshToken;

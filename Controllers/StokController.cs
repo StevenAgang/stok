@@ -9,11 +9,8 @@ namespace stok.Controllers
 {
     [ApiController]
     [Route("stok")]
-    public class StokController(IScrapingService scrape, ResponseHelper response, IHubContext<ScrapingHubService> hubContext) : ControllerBase
+    public class StokController(IScrapingService _scrape, ResponseHelper _response, IHubContext<ScrapingHubService> _hubContext) : ControllerBase
     {
-        private readonly IScrapingService _scrape = scrape;
-        private readonly ResponseHelper _response = response;
-        private readonly IHubContext<ScrapingHubService> _hubContext = hubContext;  
         [HttpGet("carinfo")]
         public async Task<IActionResult> Scrape(string url, string priceAnchor, string urlAnchor, int expectedOutput, CancellationToken cancellation)
         {
@@ -30,6 +27,14 @@ namespace stok.Controllers
             await _hubContext.Clients.All.SendAsync("ReceivedScrapeJob", data);
 
             return StatusCode(200, _response.Status(200, true, "Successfully send job", null));
+        }
+
+        [HttpPost("generate-key")]
+        public async Task<IActionResult> GenerateServiceKey([FromQuery] int userId)
+        {
+            string key = await _scrape.GenerateKey(userId);
+
+            return StatusCode(200, _response.Status(200, true, "Key Created", key));
         }
     }
 }

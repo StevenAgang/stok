@@ -21,7 +21,7 @@
     public class ScrapingHubViewModel
     {
         public string? Url { get; set; }
-        public string? priceAnchor { get; set; }
+        public string? PriceAnchor { get; set; }
         public string? SkipElement { get; set; }
     }
 }

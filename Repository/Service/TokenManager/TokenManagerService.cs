@@ -10,9 +10,8 @@ using System.Text;
 
 namespace stok.Repository.Service.TokenManager
 {
-    public class TokenManagerService(IConfiguration config) : ITokenManagerService
+    public class TokenManagerService(IConfiguration _config) : ITokenManagerService
     {
-        private readonly IConfiguration _config = config;
 
         public string GenerateJwtToken(UserRoleAndPolicy roles)
         {
@@ -50,8 +49,7 @@ namespace stok.Repository.Service.TokenManager
                 HttpOnly = httpContextSetting.IsHttpOnly,
                 Secure = httpContextSetting.IsSecure,
                 SameSite = Enum.TryParse<SameSiteMode>(httpContextSetting.SameSite, out var mode) ? mode : SameSiteMode.Lax,
-                //Expires = DateTime.UtcNow.AddMinutes(httpContextSetting.ExpireInMinutes)
-                Expires = DateTime.UtcNow.AddSeconds(10)
+                Expires = DateTime.UtcNow.AddMinutes(httpContextSetting.ExpireInMinutes)
             });
             return context;
         }
@@ -63,8 +61,7 @@ namespace stok.Repository.Service.TokenManager
                 HttpOnly = httpContextRefreshTokenSettings.IsHttpOnly,
                 Secure = httpContextRefreshTokenSettings.IsSecure,  
                 SameSite = Enum.TryParse<SameSiteMode>(httpContextRefreshTokenSettings.SameSite, out var mode) ? mode : SameSiteMode.Lax,
-                //Expires = DateTime.UtcNow.AddDays(httpContextRefreshTokenSettings.ExpireInDays)
-                Expires = DateTime.UtcNow.AddDays(7)
+                Expires = DateTime.UtcNow.AddDays(httpContextRefreshTokenSettings.ExpireInDays)
             });
 
             return context;

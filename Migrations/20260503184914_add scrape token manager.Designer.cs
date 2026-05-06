@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using stok.Repository;
@@ -11,9 +12,11 @@ using stok.Repository;
 namespace stok.Migrations
 {
     [DbContext(typeof(DatabaseContext))]
-    partial class DatabaseContextModelSnapshot : ModelSnapshot
+    [Migration("20260503184914_add scrape token manager")]
+    partial class addscrapetokenmanager
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -147,9 +150,6 @@ namespace stok.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("Token")
-                        .HasColumnType("text");
-
                     b.Property<DateTime?>("Updated_At")
                         .HasColumnType("timestamp with time zone");
 
@@ -158,6 +158,9 @@ namespace stok.Migrations
 
                     b.Property<int>("UserAccountId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("token")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 

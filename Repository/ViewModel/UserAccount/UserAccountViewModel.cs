@@ -12,6 +12,14 @@
         public string? Platform { get; set; }
     }
 
+    public class UserAccountSuccessLoginViewModel
+    {
+        public int Id { get; set; }
+        public string? Fullname { get; set; }
+        public string? AccessToken { get; set; }
+        public string? RefreshToken { get; set; }
+    }
+
     public class UserAccountRegistrationViewModel : UserAccountLoginViewModel
     {
         public string? FirstName { get; set; }

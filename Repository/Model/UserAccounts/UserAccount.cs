@@ -19,5 +19,6 @@ namespace stok.Repository.Model.UserAccounts
 
         public ICollection<RefreshTokenManager> RefreshTokenManagers { get; set; } = [];
         public ICollection<ForgotPasswordTokenManager> forgotPasswordTokenManagers { get; set; } = [];
+        public ScrapeServiceTokenManager? ScrapeServiceTokenManager { get; set; }
     }
 }

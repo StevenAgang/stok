@@ -3,9 +3,8 @@ using stok.Repository.Interace.Data;
 
 namespace stok.Repository.Data
 {
-    public class BaseData(DatabaseContext context) : IBaseData
+    public class BaseData(DatabaseContext _context) : IBaseData
     {
-        private readonly DatabaseContext _context = context;
         public async Task Save<T>(T data, CancellationToken cancellation = default) where T : class
         {
            _context.Add(data);

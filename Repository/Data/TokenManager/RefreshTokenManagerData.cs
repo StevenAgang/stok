@@ -11,5 +11,11 @@ namespace stok.Repository.Data.TokenManager
             var token = await BaseQuery<RefreshTokenManager>(true).FirstOrDefaultAsync(t => t.UserAccountId == userAccountId && t.Revoked == false && t.IsActive == true);
             return token;
         }
+
+        public async Task<RefreshTokenManager> GetRefreshToken(string refreshToken)
+        {
+            var token = await BaseQuery<RefreshTokenManager>(true).FirstOrDefaultAsync(t => t.RefreshToken == refreshToken && t.Revoked == false && t.IsActive == true);
+            return token;
+        }
     }
 }

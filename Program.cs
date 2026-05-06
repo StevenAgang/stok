@@ -6,9 +6,11 @@ using stok.Middleware;
 using stok.Repository;
 using stok.Repository.Configurations.Helper;
 using stok.Repository.Data;
+using stok.Repository.Data.Scraping;
 using stok.Repository.Data.TokenManager;
 using stok.Repository.Data.UserAccount;
 using stok.Repository.Interace.Data;
+using stok.Repository.Interace.Data.Scraping;
 using stok.Repository.Interace.Data.TokenManager;
 using stok.Repository.Interace.Data.UserAccount;
 using stok.Repository.Interace.EmailService;
@@ -48,18 +50,19 @@ namespace stok
             //builder.Services.AddScoped<IScrapingService, ScrapingService>();
             builder.Services.AddScoped<IUserAccountService,UserAccountService>();
             builder.Services.AddScoped<IRefreshTokenManagerService, RefreshTokenManagerService>();
+            builder.Services.AddScoped<IScrapingService, ScrapingService>();
 
             // Data Access
             builder.Services.AddScoped<IBaseData, BaseData>();
             builder.Services.AddScoped<IUserAccountData, UserAccountData>();
             builder.Services.AddScoped<IRefreshTokenManagerData, RefreshTokenManagerData>();
             builder.Services.AddScoped<IForgotPasswordTokenManagerData, ForgotPasswordTokenManagerData>();
+            builder.Services.AddScoped<IScrapingData, ScrapingData>();
             #endregion
 
             #region Singleton Services
 
             builder.Services.AddSingleton<ResponseHelper>();
-            builder.Services.AddSingleton<IScrapingService, ScrapingService>();
             builder.Services.AddSingleton<ITokenManagerService, TokenManagerService>();
             builder.Services.AddSingleton<IGmailTokenManagerService, GmailTokenManagerService>();
             builder.Services.AddSingleton<IEmailService, EmailService>();
